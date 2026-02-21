@@ -2,23 +2,29 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean;
+  isActivated: boolean;
   interimText: string;
   startListening: () => void;
   stopListening: () => void;
-  toggleListening: () => void;
+  toggleActivation: () => void;
   hasPermission: boolean | null;
   requestPermission: () => Promise<boolean>;
 }
 
+const ACTIVATION_WORD = 'start recording';
+const DEACTIVATION_WORD = 'stop recording';
+
 export const useSpeechRecognition = (
   onResult: (text: string) => void,
-  onActivationWord?: (word: 'start' | 'stop') => void
+  onActivationChange?: (activated: boolean) => void
 ): UseSpeechRecognitionReturn => {
   const [isListening, setIsListening] = useState(false);
+  const [isActivated, setIsActivated] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const recognitionRef = useRef<any>(null);
   const isActiveRef = useRef(false);
+  const isActivatedRef = useRef(false);
 
   const requestPermission = useCallback(async () => {
     try {
@@ -32,6 +38,19 @@ export const useSpeechRecognition = (
     }
   }, []);
 
+  const activateTranscription = useCallback(() => {
+    isActivatedRef.current = true;
+    setIsActivated(true);
+    onActivationChange?.(true);
+  }, [onActivationChange]);
+
+  const deactivateTranscription = useCallback(() => {
+    isActivatedRef.current = false;
+    setIsActivated(false);
+    setInterimText('');
+    onActivationChange?.(false);
+  }, [onActivationChange]);
+
   const createRecognition = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return null;
@@ -42,26 +61,35 @@ export const useSpeechRecognition = (
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          const lower = transcript.toLowerCase().trim();
-          if (lower.includes('start recording')) {
-            onActivationWord?.('start');
-            continue;
-          }
-          if (lower.includes('stop recording')) {
-            onActivationWord?.('stop');
-            continue;
-          }
+      const result = event.results[event.results.length - 1];
+      const transcript = result[0].transcript;
+      const lower = transcript.toLowerCase().trim();
+      const isFinal = result.isFinal;
+
+      // Check activation/deactivation words
+      if (!isActivatedRef.current && lower.includes(ACTIVATION_WORD)) {
+        if (isFinal) {
+          activateTranscription();
+        }
+        return;
+      }
+
+      if (isActivatedRef.current && lower.includes(DEACTIVATION_WORD)) {
+        if (isFinal) {
+          deactivateTranscription();
+        }
+        return;
+      }
+
+      // Only transcribe when activated
+      if (isActivatedRef.current) {
+        if (!isFinal) {
+          setInterimText(transcript);
+        } else {
           onResult(transcript);
           setInterimText('');
-        } else {
-          interim += transcript;
         }
       }
-      if (interim) setInterimText(interim);
     };
 
     recognition.onerror = (event: any) => {
@@ -80,7 +108,7 @@ export const useSpeechRecognition = (
     };
 
     return recognition;
-  }, [onResult, onActivationWord]);
+  }, [onResult, activateTranscription, deactivateTranscription]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) {
@@ -97,6 +125,8 @@ export const useSpeechRecognition = (
 
   const stopListening = useCallback(() => {
     isActiveRef.current = false;
+    isActivatedRef.current = false;
+    setIsActivated(false);
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
     }
@@ -104,10 +134,13 @@ export const useSpeechRecognition = (
     setInterimText('');
   }, []);
 
-  const toggleListening = useCallback(() => {
-    if (isListening) stopListening();
-    else startListening();
-  }, [isListening, startListening, stopListening]);
+  const toggleActivation = useCallback(() => {
+    if (isActivatedRef.current) {
+      deactivateTranscription();
+    } else {
+      activateTranscription();
+    }
+  }, [activateTranscription, deactivateTranscription]);
 
   useEffect(() => {
     return () => {
@@ -118,5 +151,5 @@ export const useSpeechRecognition = (
     };
   }, []);
 
-  return { isListening, interimText, startListening, stopListening, toggleListening, hasPermission, requestPermission };
+  return { isListening, isActivated, interimText, startListening, stopListening, toggleActivation, hasPermission, requestPermission };
 };

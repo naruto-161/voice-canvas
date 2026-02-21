@@ -17,42 +17,51 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const [isRecording, setIsRecording] = useState(false);
 
+  // Append-only: always add to existing content
   const handleSpeechResult = useCallback((text: string) => {
     if (!note) return;
     const newContent = note.content + (note.content ? ' ' : '') + text;
     onContentChange(newContent);
   }, [note, onContentChange]);
 
-  const handleActivation = useCallback((word: 'start' | 'stop') => {
-    if (word === 'start') {
-      startListening();
+  const handleActivationChange = useCallback((activated: boolean) => {
+    if (activated) {
       toast.success('Recording started');
     } else {
-      stopListening();
       toast.success('Recording stopped');
     }
   }, []);
 
   const {
-    isListening, interimText, startListening, stopListening,
-    toggleListening, hasPermission, requestPermission
-  } = useSpeechRecognition(handleSpeechResult, handleActivation);
+    isListening, isActivated, interimText, startListening, stopListening,
+    toggleActivation, hasPermission, requestPermission
+  } = useSpeechRecognition(handleSpeechResult, handleActivationChange);
 
-  useEffect(() => {
-    setIsRecording(isListening);
-  }, [isListening]);
-
+  // Auto-start listening on mount (for activation word detection)
   useEffect(() => {
     requestPermission().then(allowed => {
       if (allowed) {
         toast.success("Microphone ready. Say 'Start recording' or click the mic.");
+        startListening();
       } else {
-        toast.warning('Microphone access denied. Please enable to use voice transcription.');
+        toast.warning('Microphone access denied. Please enable microphone to use transcription.');
       }
     });
   }, []);
+
+  const handleMicClick = () => {
+    if (isActivated) {
+      // If currently transcribing, stop transcription (but keep listening for activation)
+      toggleActivation();
+    } else if (!isListening) {
+      // If not listening at all, start listening
+      startListening();
+    } else {
+      // Listening but not activated — activate transcription
+      toggleActivation();
+    }
+  };
 
   const handleCopy = () => {
     if (note?.content) {
@@ -75,8 +84,9 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
     speechSynthesis.speak(utterance);
   };
 
-  const wordCount = note?.content ? note.content.trim().split(/\s+/).filter(Boolean).length : 0;
-  const charCount = note?.content?.length || 0;
+  const content = note?.content || '';
+  const wordCount = content.trim() ? content.trim().split(/\s+/).filter(Boolean).length : 0;
+  const charCount = content.length;
   const dateStr = note ? new Date(note.updatedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
   const insertText = useCallback((text: string) => {
@@ -91,13 +101,13 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
     return () => { delete (window as any).__canvasInsertText; };
   }, [insertText]);
 
-  const isEmpty = !note?.content;
+  const isEmpty = !content;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
       {/* Recording indicator */}
       <AnimatePresence>
-        {isRecording && (
+        {isActivated && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -113,55 +123,53 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
       {/* Header */}
       <div className="px-10 pt-6 pb-2 flex items-center justify-between shrink-0">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{note?.title || 'Untitled'}</h2>
+          <h2 data-note-title className="text-lg font-semibold text-foreground">{note?.title || 'Untitled'}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             {dateStr && `${dateStr} · `}
-            <motion.span key={wordCount} initial={{ opacity: 0.5 }} animate={{ opacity: 1 }}>
-              {wordCount.toLocaleString()} words
-            </motion.span>
-            {' · '}
-            <motion.span key={charCount} initial={{ opacity: 0.5 }} animate={{ opacity: 1 }}>
-              {charCount.toLocaleString()} characters
-            </motion.span>
+            {wordCount.toLocaleString()} words · {charCount.toLocaleString()} characters
             {autoSave && lastSaved && (
-              <span className="ml-2 text-primary/60">· Saved</span>
+              <span className="ml-1 text-primary/60">· Saved</span>
             )}
           </p>
         </div>
 
         {/* Mic button */}
         <button
-          onClick={toggleListening}
+          onClick={handleMicClick}
           className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 relative ${
-            isListening
+            isActivated
               ? 'bg-primary text-primary-foreground mic-pulse'
-              : 'border border-primary/40 text-primary hover:bg-primary/10 hover:glow-primary-sm'
+              : isListening
+                ? 'border-2 border-primary/60 text-primary hover:bg-primary/10'
+                : 'border border-primary/40 text-primary hover:bg-primary/10 hover:glow-primary-sm'
           }`}
         >
           <Mic className="w-5 h-5" />
-          {isListening && (
+          {isActivated && (
             <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-destructive border-2 border-background" />
           )}
         </button>
       </div>
 
-      {/* Interim text bubble */}
-      <AnimatePresence>
-        {interimText && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            className="mx-10 mb-2 px-4 py-2 rounded-lg bg-muted/50 text-sm text-muted-foreground italic"
-          >
-            {interimText}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Fixed interim text preview area */}
+      <div className="mx-10 h-10 flex items-center">
+        <AnimatePresence>
+          {interimText && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="px-4 py-2 rounded-lg bg-muted/50 text-sm text-muted-foreground italic w-full truncate"
+            >
+              {interimText}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Editor */}
       <div className="flex-1 overflow-y-auto px-10 pb-20 relative">
-        {isEmpty && !isListening && (
+        {isEmpty && !isActivated && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -186,7 +194,7 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
         <textarea
           ref={editorRef}
           data-canvas-content
-          value={note?.content || ''}
+          value={content}
           onChange={(e) => onContentChange(e.target.value)}
           placeholder=""
           className="w-full h-full resize-none bg-transparent outline-none text-foreground leading-relaxed placeholder:text-muted-foreground/30 max-w-2xl mx-auto"
