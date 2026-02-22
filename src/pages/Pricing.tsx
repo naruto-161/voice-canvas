@@ -1,3 +1,4 @@
+// R3F v8.18 + drei v9.122 + three v0.160
 import { Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Float, MeshDistortMaterial } from '@react-three/drei';
