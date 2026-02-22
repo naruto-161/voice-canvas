@@ -1,97 +1,63 @@
-// R3F v8.18 + drei v9.122 + three v0.160
-import { Suspense, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Float, MeshDistortMaterial } from '@react-three/drei';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Mic } from 'lucide-react';
+import { showToast } from '@/components/ui/custom-toast';
 import Navbar from '@/components/Navbar';
-
-const FloatingBlob = () => {
-  const meshRef = useRef<any>(null);
-
-  return (
-    <Float speed={1.5} rotationIntensity={0.4} floatIntensity={1.2}>
-      <mesh ref={meshRef} scale={2.2}>
-        <icosahedronGeometry args={[1, 4]} />
-        <MeshDistortMaterial
-          color="#13DEBC"
-          transparent
-          opacity={0.15}
-          distort={0.35}
-          speed={1.5}
-          roughness={0.2}
-        />
-      </mesh>
-    </Float>
-  );
-};
 
 const Pricing = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(180deg, #0B1220 0%, #0F1F1B 50%, #0B1220 100%)' }}>
       <Navbar />
 
       <div className="flex-1 relative flex items-center justify-center">
-        {/* Three.js background */}
-        <div className="absolute inset-0 z-0">
-          <Suspense fallback={null}>
-            <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-              <ambientLight intensity={0.5} />
-              <pointLight position={[10, 10, 10]} intensity={0.8} />
-              <FloatingBlob />
-            </Canvas>
-          </Suspense>
+        {/* SVG wireframe diamond */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <svg className="w-[500px] h-[500px] opacity-20 animate-pulse" style={{ animationDuration: '6s' }} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path d="M100,20 L140,60 L180,100 L140,140 L100,180 L60,140 L20,100 L60,60 Z" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.5" />
+            <path d="M100,0 L200,100 L100,200 L0,100 Z" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.5" />
+            <circle cx="100" cy="100" r="80" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.2" />
+          </svg>
         </div>
 
-        {/* Content overlay */}
-        <div className="relative z-10 text-center max-w-lg px-6">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl md:text-5xl font-bold text-foreground mb-4"
-          >
-            Premium Features{' '}
+        {/* Content */}
+        <main className="relative z-10 w-full max-w-2xl px-6 text-center">
+          {/* Logo icon */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mb-12">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 border border-primary/20">
+              <Mic className="w-6 h-6 text-primary" />
+            </div>
+          </motion.div>
+
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6">
+            Premium Features <br />
             <span className="text-gradient-primary">Coming Soon</span>
           </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="text-muted-foreground mb-2"
-          >
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }} className="text-lg text-muted-foreground font-light max-w-lg mx-auto leading-relaxed mb-6">
             We're building advanced AI capabilities to enhance your VoiceScribe experience.
           </motion.p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-sm text-muted-foreground/60 mb-8"
-          >
-            Early access launching soon. Stay tuned.
-          </motion.p>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }}>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-card/60 backdrop-blur-sm border border-border text-xs font-semibold tracking-widest uppercase text-primary/80">
+              Early access launching soon
+            </span>
+          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="flex items-center justify-center gap-4"
-          >
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.97] transition-all"
-            >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.5 }} className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={() => navigate('/')} className="px-8 py-4 bg-primary text-primary-foreground font-bold rounded-full transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)]">
               Back to Dashboard
             </button>
-            <button className="px-6 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-muted/50 active:scale-[0.97] transition-all">
+            <button onClick={() => showToast("We'll notify you when premium features launch.", 'info')} className="px-8 py-4 bg-foreground/5 hover:bg-foreground/10 text-foreground font-medium rounded-full border border-border transition-all duration-300 backdrop-blur-sm">
               Notify Me
             </button>
           </motion.div>
-        </div>
+
+          <motion.footer initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }} className="mt-20 text-muted-foreground text-sm">
+            <p>© 2025 VoiceScribe AI. All rights reserved.</p>
+          </motion.footer>
+        </main>
       </div>
     </div>
   );
