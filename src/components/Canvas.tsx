@@ -5,15 +5,22 @@ import { toast } from 'sonner';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import type { Note } from '@/hooks/useNotes';
 
+interface SpeechState {
+  isListening: boolean;
+  isActivated: boolean;
+  hasPermission: boolean | null;
+}
+
 interface CanvasProps {
   note: Note | null;
   onContentChange: (content: string) => void;
   autoSave: boolean;
   lastSaved: Date | null;
   zoom: number;
+  onSpeechStateChange?: (state: SpeechState) => void;
 }
 
-const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProps) => {
+const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom, onSpeechStateChange }: CanvasProps) => {
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -37,6 +44,11 @@ const Canvas = ({ note, onContentChange, autoSave, lastSaved, zoom }: CanvasProp
     isListening, isActivated, interimText, startListening, stopListening,
     toggleActivation, hasPermission, requestPermission
   } = useSpeechRecognition(handleSpeechResult, handleActivationChange);
+
+  // Report speech state to parent
+  useEffect(() => {
+    onSpeechStateChange?.({ isListening, isActivated, hasPermission });
+  }, [isListening, isActivated, hasPermission, onSpeechStateChange]);
 
   // Auto-start listening on mount (for activation word detection)
   useEffect(() => {

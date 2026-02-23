@@ -16,6 +16,13 @@ const Index = () => {
   const [showHelper, setShowHelper] = useState(true);
   const [zoom, setZoom] = useState(16);
 
+  // Speech state lifted from Canvas
+  const [speechState, setSpeechState] = useState({
+    isListening: false,
+    isActivated: false,
+    hasPermission: null as boolean | null,
+  });
+
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 2, 28));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 2, 12));
 
@@ -24,7 +31,6 @@ const Index = () => {
     toast.success('New note created');
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -47,7 +53,11 @@ const Index = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Navbar />
+      <Navbar
+        isListening={speechState.isListening}
+        isActivated={speechState.isActivated}
+        hasPermission={speechState.hasPermission}
+      />
       <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
         <LeftToolbar
           onNewFile={handleNewFile}
@@ -65,6 +75,7 @@ const Index = () => {
           autoSave={autoSave}
           lastSaved={lastSaved}
           zoom={zoom}
+          onSpeechStateChange={setSpeechState}
         />
         <HelperPanel visible={showHelper} />
       </div>
